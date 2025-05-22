@@ -408,5 +408,140 @@ volumes:
 
   ## Script antink.c
 
-a.)
+a.) Bagian Konstanta dan Path
+```
+static const char *dirpath = "/it24_host";
+static const char *logpath = "/antink-logs/it24.log";
+```
+  - dirpath: Direktori asli tempat file sebenarnya berada.
+  - logpath: Lokasi file log semua aktivitas AntiNK.
 
+b.) Logging Function
+```
+void write_log(const char *action, const char *path, const char *log_type);
+```
+  - Menulis log aktivitas ke logpath.
+  - Abaikan log GETATTR dan READDIR jika log_type == NULL (biar log gak penuh).
+  - Format log bervariasi tergantung log_type:
+       - ALERT: untuk deteksi file berbahaya.
+       - REVERSE: saat file dibalik namanya.
+       - ENCRYPT: saat isi file dienkripsi.
+
+c.) Deteksi File Berbahaya
+```
+int is_dangerous_file(const char *path);
+```
+  - Mengecek apakah nama file mengandung nafis atau kimcun (dalam huruf kecil).
+  - Jika ya, tulis log ALERT dan return 1.
+
+d.) Fungsi Reversing Nama
+```
+void get_reversed_name(const char *name, char *reversed);
+void get_original_name(const char *reversed, char *original);
+```
+  - Membalik nama file atau mengembalikannya ke nama asli (digunakan di readdir, getattr, dll).
+
+e.) Enkripsi ROT13
+```
+void rot13_encrypt(char *text) {
+    for (int i = 0; text[i] != '\0'; i++) {
+        if (isalpha(text[i])) {
+            char base = islower(text[i]) ? 'a' : 'A';
+            text[i] = (text[i] - base + 13) % 26 + base;
+        }
+    }
+}
+```
+  - Mengubah karakter alfabet pada buffer dengan algoritma ROT13 (a↔n, b↔o, dll).
+  - Digunakan untuk mengenkripsi isi file .txt biasa.
+
+f.) Fungsi Utilitas Path
+```
+static void get_path_from_root(char *fullpath, const char *path) {
+    strcpy(fullpath, dirpath);
+    if (path[0] != '/' && strlen(path) > 0) {
+        strcat(fullpath, "/");
+    }
+    strcat(fullpath, path);
+}
+```
+  - Menggabungkan dirpath + path hasil mount agar bisa diakses langsung dari filesystem asli.
+
+g.) xmp_getattr
+```
+static int xmp_getattr(const char *path, struct stat *stbuf);
+```
+  - Mendapatkan atribut file.
+  - Jika nama file sudah dibalik (misal .sifan), kembalikan dulu ke nama asli.
+  - Lanjutkan lstat.
+
+h.) xmp_readdir
+```
+static int xmp_readdir(...);
+```
+  - Digunakan untuk membaca isi direktori.
+  - Jika file termasuk berbahaya, nama file akan dibalik sebelum ditampilkan.
+  - Menulis log REVERSE saat proses ini terjadi.
+
+i.) xmp_read
+```
+static int xmp_read(...);
+```
+  - Buka file dari path asli.
+  - Enkripsi isi file menggunakan ROT13
+  - Log ENCRYPT ditulis bila enkripsi dijalankan.
+
+j.) xmp_write, xmp_open, xmp_access
+```
+static int xmp_write(...);
+static int xmp_open(...);
+static int xmp_access(...);
+```
+  - Sama-sama mengubah path jika file telah dibalik.
+  - Menulis log WRITE, OPEN, dan ACCESS.
+
+k.) xmp_create, xmp_mkdir, xmp_rmdir, xmp_unlink
+```
+static int xmp_create(...);
+static int xmp_mkdir(...);
+static int xmp_rmdir(...);
+static int xmp_unlink(...);
+```
+  - Operasi dasar filesystem (buat file/dir, hapus, dll).
+  - Menyusun full path lalu menjalankan operasi asli.
+  - Log ditulis sesuai aksi (CREATE, MKDIR, dst).
+
+l.) Operasi FUSE
+```
+static struct fuse_operations xmp_oper = {
+    .getattr = xmp_getattr,
+    .readdir = xmp_readdir,
+    .read = xmp_read,
+    .write = xmp_write,
+    .open = xmp_open,
+    .access = xmp_access,
+    .create = xmp_create,
+    .mkdir = xmp_mkdir,
+    .rmdir = xmp_rmdir,
+    .unlink = xmp_unlink,
+};
+```
+  - Mendaftarkan semua handler untuk fungsi-fungsi FUSE seperti read, write, readdir, dll.
+
+m.) Fungsi main
+```
+int main(int argc, char *argv[]) {
+    mkdir("/antink-logs", 0755);
+
+    FILE *log_file = fopen(logpath, "w");
+    if (log_file) {
+        fprintf(log_file, "=== AntiNK System Started ===\n");
+        fclose(log_file);
+    }
+
+    return fuse_main(argc, argv, &xmp_oper, NULL);
+}
+```
+  - Membuat direktori /antink-logs jika belum ada.
+  - Menulis "AntiNK System Started" ke file log.
+  - Memulai FUSE menggunakan fuse_main.
