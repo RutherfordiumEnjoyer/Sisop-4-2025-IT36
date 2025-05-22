@@ -50,71 +50,71 @@ Anggota Kelompok
 ##Soal
 ---
 
-
 ### Soal 1
 
 1. Mounting FUSE & Penentuan Root Directory
-   ---
-    int main(int argc, char *argv[]) {
    
-    if (argc < 3) {
+   	---
+        int main(int argc, char *argv[]) {
    
-    fprintf(stderr, "Usage: %s <rootdir> <mountpoint>\n", argv[0]);
+    	if (argc < 3) {
+   
+    	fprintf(stderr, "Usage: %s <rootdir> <mountpoint>\n", argv[0]);
         return 1;
    
-    }
+  		  }
 
-    if (!realpath(argv[1], rootdir)) {
+   		 if (!realpath(argv[1], rootdir)) {
    
-   perror("realpath");
+   		perror("realpath");
    
-    return 1;
-    }
+    	return 1;
+    	}
 
-    char image_dir[PATH_MAX];
+    	char image_dir[PATH_MAX];
    
-    snprintf(image_dir, PATH_MAX, "%s/image", rootdir);
+    	snprintf(image_dir, PATH_MAX, "%s/image", rootdir);
    
-    struct stat st;
+    	struct stat st;
    
-    if (stat(image_dir, &st) == -1) {
+    	if (stat(image_dir, &st) == -1) {
    
-   	if (mkdir(image_dir, 0755) == -1) {
+   		if (mkdir(image_dir, 0755) == -1) {
    
-   	perror("mkdir image");
+   		perror("mkdir image");
    
-   	return 1;
+   		return 1;
         }
-    }
+    	}
 
-    argv[1] = argv[2];
+    	argv[1] = argv[2];
    
-    argc--;
+    	argc--;
 
-    umask(0);
+    	umask(0);
    
-    return fuse_main(argc, argv, &xmp_oper, NULL);
+    	return fuse_main(argc, argv, &xmp_oper, NULL);
    
-    }
+    	}
 
-   ---
+   	---
 
  2.  Menggabungkan root directory (rootdir) dan path relatif dari FUSE menjadi path absolut file di sistem lokal.
 
-   ---
-    static int xmp_getattr(const char *path, struct stat *stbuf) {
+  	 ---
+   	static int xmp_getattr(const char *path, struct stat *stbuf) {
    
-    int res;
+   	 int res;
    
-    char fpath[PATH_MAX];
-   
-    fullpath(fpath, path);
+   	 char fpath[PATH_MAX];
+     
+    		fullpath(fpath, path);
 
-    res = lstat(fpath, stbuf);
+   	 res = lstat(fpath, stbuf);
    
-    if (res == -1) return -errno;
+    	if (res == -1) return -errno;
    
-    return 0;
-
-    }
-   ---
+   		 return 
+      }
+      
+---
