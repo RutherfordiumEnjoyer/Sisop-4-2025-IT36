@@ -54,7 +54,7 @@ Anggota Kelompok
 
 1. Mounting FUSE & Penentuan Root Directory
    
-   	```
+   	```cpp
         int main(int argc, char *argv[]) {
     if (argc < 3) {
         fprintf(stderr, "Usage: %s <rootdir> <mountpoint>\n", argv[0]);
