@@ -85,14 +85,21 @@ Anggota Kelompok
 
    ---
    2. Menggabungkan root directory (rootdir) dan path relatif dari FUSE menjadi       path absolut file di sistem lokal.
+
    ---
     static int xmp_getattr(const char *path, struct stat *stbuf) {
+   
     int res;
+   
     char fpath[PATH_MAX];
+   
     fullpath(fpath, path);
 
     res = lstat(fpath, stbuf);
+   
     if (res == -1) return -errno;
+   
     return 0;
+
     }
    ---
