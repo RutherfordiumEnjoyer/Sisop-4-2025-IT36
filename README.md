@@ -51,7 +51,7 @@ Anggota Kelompok
 ---
 
 
-### Soal 1**
+### Soal 1
 
 1. Mounting FUSE & Penentuan Root Directory
    ---
@@ -99,7 +99,7 @@ Anggota Kelompok
 
    ---
 
-   2.  Menggabungkan root directory (rootdir) dan path relatif dari FUSE menjadi path absolut file di sistem lokal.
+ 2.  Menggabungkan root directory (rootdir) dan path relatif dari FUSE menjadi path absolut file di sistem lokal.
 
    ---
     static int xmp_getattr(const char *path, struct stat *stbuf) {
