@@ -56,35 +56,50 @@ Anggota Kelompok
 1. Mounting FUSE & Penentuan Root Directory
    ---
     int main(int argc, char *argv[]) {
+   
     if (argc < 3) {
-        fprintf(stderr, "Usage: %s <rootdir> <mountpoint>\n", argv[0]);
+   
+    fprintf(stderr, "Usage: %s <rootdir> <mountpoint>\n", argv[0]);
         return 1;
+   
     }
 
     if (!realpath(argv[1], rootdir)) {
-        perror("realpath");
-        return 1;
+   
+   perror("realpath");
+   
+    return 1;
     }
 
     char image_dir[PATH_MAX];
+   
     snprintf(image_dir, PATH_MAX, "%s/image", rootdir);
+   
     struct stat st;
+   
     if (stat(image_dir, &st) == -1) {
-        if (mkdir(image_dir, 0755) == -1) {
-            perror("mkdir image");
-            return 1;
+   
+   	if (mkdir(image_dir, 0755) == -1) {
+   
+   	perror("mkdir image");
+   
+   	return 1;
         }
     }
 
     argv[1] = argv[2];
+   
     argc--;
 
     umask(0);
+   
     return fuse_main(argc, argv, &xmp_oper, NULL);
+   
     }
 
    ---
-   2. Menggabungkan root directory (rootdir) dan path relatif dari FUSE menjadi       path absolut file di sistem lokal.
+
+   2.  Menggabungkan root directory (rootdir) dan path relatif dari FUSE menjadi path absolut file di sistem lokal.
 
    ---
     static int xmp_getattr(const char *path, struct stat *stbuf) {
