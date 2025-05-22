@@ -107,26 +107,26 @@ Anggota Kelompok
 
  2.  Menggabungkan root directory (rootdir) dan path relatif dari FUSE menjadi path absolut file di sistem lokal.
 
-```cpp
-   static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
-                       off_t offset, struct fuse_file_info *fi) {
-    DIR *dp;
-    struct dirent *de;
-    char fpath[PATH_MAX];
-    fullpath(fpath, path);
+	```cpp
+   	static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
+        	 off_t offset, struct fuse_file_info *fi) {
+    	DIR *dp;
+    	struct dirent *de;
+    	char fpath[PATH_MAX];
+    	fullpath(fpath, path);
 
-    (void) offset;
-    (void) fi;
+    	(void) offset;
+    	(void) fi;
 
-    dp = opendir(fpath);
-    if (dp == NULL) return -errno;
+    	dp = opendir(fpath);
+    	if (dp == NULL) return -errno;
 
-    while ((de = readdir(dp)) != NULL) {
+    	while ((de = readdir(dp)) != NULL) {
         struct stat st;
         memset(&st, 0, sizeof(st));
         st.st_ino = de->d_ino;
         st.st_mode = de->d_type << 12;
- if (de->d_type == DT_REG) {
+ 	if (de->d_type == DT_REG) {
             const char *ext = strrchr(de->d_name, '.');
             if (ext && strcmp(ext, ".txt") == 0) {
                 char filename_base[NAME_MAX];
@@ -142,9 +142,9 @@ Anggota Kelompok
         }
 
         if (filler(buf, de->d_name, &st, 0)) break;
-    }
+   	 }
 
-    closedir(dp);
-    return 0;
+   	 closedir(dp);
+  	  return 0;
 
-```
+	```
