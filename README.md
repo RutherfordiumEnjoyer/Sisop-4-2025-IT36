@@ -107,7 +107,7 @@ Anggota Kelompok
 
  2.  Menggabungkan root directory (rootdir) dan path relatif dari FUSE menjadi path absolut file di sistem lokal.
 
-```
+```cpp
    static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
                        off_t offset, struct fuse_file_info *fi) {
     DIR *dp;
