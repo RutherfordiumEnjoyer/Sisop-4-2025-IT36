@@ -274,7 +274,7 @@ static struct fuse_operations baymax_oper = {
     .ftruncate  = baymax_ftruncate,
 };
 ```
- - Struktur ini menghubungkan nama operasi FUSE ke fungsi yang sudah didefinisikan.
+  - Struktur ini menghubungkan nama operasi FUSE ke fungsi yang sudah didefinisikan.
 
 d.) Fungsi main
 ```
@@ -283,6 +283,130 @@ int main(int argc, char *argv[]) {
     return fuse_main(argc, argv, &baymax_oper, NULL);
 }
 ```
- - Memulai filesystem FUSE dengan struktur operasi yang sudah dibuat.
+  - Memulai filesystem FUSE dengan struktur operasi yang sudah dibuat.
 
 ### Soal 3
+
+  ## Script Dockerfile
+
+a.) Base & Install
+```
+FROM ubuntu:20.04
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y \
+    build-essential pkg-config libfuse-dev fuse \
+    iproute2 procps nano vim curl sudo \
+    && rm -rf /var/lib/apt/lists/*
+```
+  - Pakai Ubuntu 20.04.
+  - Install tools build, FUSE, dan utilitas debugging.
+
+b.) Setup Folder & Compile
+```
+RUN mkdir -p /it24_host /antink_mount /antink-logs
+COPY antink.c /antink.c
+RUN gcc -Wall -o /antink /antink.c `pkg-config fuse --cflags --libs`
+```
+  - Buat folder kerja.
+  - Compile antink.c jadi binary /antink.
+
+c.) Start Script
+```
+RUN echo '#!/bin/bash\n\
+mkdir -p /it24_host /antink_mount /antink-logs\n\
+touch /antink-logs/it24.log\n\
+if [ "$1" = "server" ]; then\n\
+  /antink /antink_mount -f -d\n\
+elif [ "$1" = "logger" ]; then\n\
+  tail -f /antink-logs/it24.log\n\
+else\n\
+  exec "$@"\n\
+fi' > /start.sh && chmod +x /start.sh
+```
+  - Buat script start: bisa jalanin server, logger, atau perintah bebas.
+
+d.) Entrypoint & CMD
+```
+ENTRYPOINT ["/start.sh"]
+CMD ["server"]
+```
+  - Default-nya jalanin start.sh server.
+
+  ## Script docker-compose.yml
+
+a.) Versi & Struktur
+```
+version: '3'
+
+services:
+  antink-server:
+    ...
+  antink-logger:
+    ...
+volumes:
+  antink_mount:
+  antink-logs:
+```
+  - Gunakan Compose versi 3.
+  - Definisikan 2 service: antink-server & antink-logger, plus 2 volume untuk share data.
+
+b.) antink-server
+```
+  antink-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: antink-server:latest
+    container_name: antink-server
+    command: server
+    privileged: true
+    volumes:
+      - ./it24_host:/it24_host:rw
+      - antink_mount:/antink_mount
+      - antink-logs:/antink-logs
+    cap_add:
+      - SYS_ADMIN
+    devices:
+      - /dev/fuse:/dev/fuse
+    security_opt:
+      - apparmor:unconfined
+    restart: unless-stopped
+```
+  - Build dari Dockerfile.
+  - Butuh privileged, akses fuse, dan SYS_ADMIN untuk mount FUSE.
+  - Volume untuk host folder dan log.
+
+c.) antink-logger
+```
+  antink-logger:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: antink-logger:latest
+    container_name: antink-logger
+    command: logger
+    volumes:
+      - antink-logs:/antink-logs
+    depends_on:
+      - antink-server
+    restart: unless-stopped
+```
+  - Logger jalanin command: logger.
+  - Ambil log dari volume antink-logs.
+  - Start setelah antink-server.
+
+d.) Volumes
+```
+volumes:
+  antink_mount:
+  antink-logs:
+```
+  - Volume shared antar container:
+      - antink_mount: untuk hasil mount FUSE.
+      - antink-logs: untuk file log it24.log.
+
+  ## Script antink.c
+
+a.)
+
