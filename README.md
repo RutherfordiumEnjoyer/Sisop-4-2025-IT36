@@ -222,3 +222,67 @@ enkripsi teks asli
   	  return 0;
 
 	```
+
+
+
+### Soal 2
+
+  ## Script baymax.c
+
+a.) Fungsi Pendukung
+```
+static int make_chunk_path(...);
+void log_activity(...);
+```
+  - make_chunk_path(): Membuat nama file chunk, misal file.txt.000, file.txt.001, dst.
+  - log_activity(): Mencatat aktivitas file ke dalam activity.log dengan timestamp.
+
+b.) Fungsi Utama FUSE
+```
+static int baymax_getattr(...)
+static int baymax_readdir(...)
+static int baymax_open(...)
+static int baymax_read(...)
+static int baymax_create(...);
+static int baymax_mknod(...);
+static int baymax_write(...)
+static int baymax_truncate(...);
+static int baymax_ftruncate(...);
+static int baymax_unlink(...)
+```
+  - Mengecek atribut file. Menggabungkan ukuran semua chunk menjadi satu ukuran file utuh.
+  - Membaca isi direktori root / dan hanya menampilkan file yang punya chunk .000.
+  - Mengecek apakah file .000 ada saat ingin dibuka. Juga mencatat aktivitas "OPEN".
+  - Membaca isi file berdasarkan offset dan jumlah size. Membaca dari satu atau lebih chunk.
+  - Membuat file baru dengan chunk pertama .000, dan mencatat "CREATE".
+  - Menulis data ke chunk sesuai offset dan ukuran. Chunk dibuat otomatis jika perlu. Mencatat "WRITE".
+  - Mengubah ukuran file. Menghapus chunk yang tidak dibutuhkan atau menyesuaikan ukuran chunk terakhir. Mencatat "TRUNCATE".
+  - Menghapus semua chunk file dan mencatat "DELETE".
+
+c.) Struktur FUSE Operation
+```
+static struct fuse_operations baymax_oper = {
+    .getattr    = baymax_getattr,
+    .readdir    = baymax_readdir,
+    .open       = baymax_open,
+    .read       = baymax_read,
+    .create     = baymax_create,
+    .write      = baymax_write,
+    .unlink     = baymax_unlink,
+    .mknod      = baymax_mknod,
+    .truncate   = baymax_truncate,
+    .ftruncate  = baymax_ftruncate,
+};
+```
+ - Struktur ini menghubungkan nama operasi FUSE ke fungsi yang sudah didefinisikan.
+
+d.) Fungsi main
+```
+int main(int argc, char *argv[]) {
+    umask(0);
+    return fuse_main(argc, argv, &baymax_oper, NULL);
+}
+```
+ - Memulai filesystem FUSE dengan struktur operasi yang sudah dibuat.
+
+### Soal 3
