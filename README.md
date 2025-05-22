@@ -56,20 +56,29 @@ Anggota Kelompok
    
    	```
         int main(int argc, char *argv[]) {
-   
-    	if (argc < 3) {
-   
-    	fprintf(stderr, "Usage: %s <rootdir> <mountpoint>\n", argv[0]);
+    if (argc < 3) {
+        fprintf(stderr, "Usage: %s <rootdir> <mountpoint>\n", argv[0]);
         return 1;
-   
-  		  }
+    }
 
-   		 if (!realpath(argv[1], rootdir)) {
-   
-   		perror("realpath");
-   
-    	return 1;
-    	}
+    if (!realpath(argv[1], rootdir)) {
+        perror("realpath");
+        return 1;
+    }
+
+   char image_dir[PATH_MAX];
+    snprintf(image_dir, PATH_MAX, "%s/image", rootdir);
+    struct stat st;
+    if (stat(image_dir, &st) == -1) {
+        if (mkdir(image_dir, 0755) == -1) {
+            perror("mkdir image");
+            return 1;
+        }
+    }
+
+    argv[1] = argv[2];
+    argc--;
+    }
 
     	char image_dir[PATH_MAX];
    
@@ -85,34 +94,57 @@ Anggota Kelompok
    
    		return 1;
         }
-    	}
+    }
 
-    	argv[1] = argv[2];
-   
-    	argc--;
+    argv[1] = argv[2];
+    argc--;
 
-    	umask(0);
-   
-    	return fuse_main(argc, argv, &xmp_oper, NULL);
-   
-    	}
+    umask(0);
+    return fuse_main(argc, argv, &xmp_oper, NULL);
+	}
+
    	 ```
 
  2.  Menggabungkan root directory (rootdir) dan path relatif dari FUSE menjadi path absolut file di sistem lokal.
 
 ```
-   	static int xmp_getattr(const char *path, struct stat *stbuf) {
-   
-   	 int res;
-   
-   	 char fpath[PATH_MAX];
-     
-    		fullpath(fpath, path);
+   static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
+                       off_t offset, struct fuse_file_info *fi) {
+    DIR *dp;
+    struct dirent *de;
+    char fpath[PATH_MAX];
+    fullpath(fpath, path);
 
-   	 res = lstat(fpath, stbuf);
-   
-    	if (res == -1) return -errno;
-   
-   		 return 
-      }
+    (void) offset;
+    (void) fi;
+
+    dp = opendir(fpath);
+    if (dp == NULL) return -errno;
+
+    while ((de = readdir(dp)) != NULL) {
+        struct stat st;
+        memset(&st, 0, sizeof(st));
+        st.st_ino = de->d_ino;
+        st.st_mode = de->d_type << 12;
+ if (de->d_type == DT_REG) {
+            const char *ext = strrchr(de->d_name, '.');
+            if (ext && strcmp(ext, ".txt") == 0) {
+                char filename_base[NAME_MAX];
+                strncpy(filename_base, de->d_name, NAME_MAX);
+                filename_base[strlen(filename_base) - 4] = '\0';
+
+                if (!already_converted(filename_base)) {
+                    char fullfile[PATH_MAX];
+                    snprintf(fullfile, PATH_MAX, "%s/%s", fpath, de->d_name);
+                    hex_to_png(fullfile, filename_base);
+                }
+            }
+        }
+
+        if (filler(buf, de->d_name, &st, 0)) break;
+    }
+
+    closedir(dp);
+    return 0;
+
 ```
