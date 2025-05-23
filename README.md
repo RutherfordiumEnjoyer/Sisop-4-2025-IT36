@@ -198,7 +198,7 @@ Fungsi FUSE untuk mengambil atribut file dan membaca direktori.
 
 Program ini memanfaatkan FUSE untuk menjalankan konversi file berbasis filesystem secara otomatis, memudahkan pengguna untuk melihat hasil konversi secara langsung dalam folder virtual.
 
-## Output
+Output
 	![Screenshot 2025-05-17 112924](https://github.com/user-attachments/assets/ed27f029-8347-477e-8cdc-1effb8600b87)
  	![Screenshot 2025-05-23 171145](https://github.com/user-attachments/assets/b730f98d-1b6c-4584-b19f-8d8dbfd20c47)
 	![image](https://github.com/user-attachments/assets/54c6b0f0-385c-4fb9-8cf1-4ff2c8b5e569)
