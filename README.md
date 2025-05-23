@@ -127,125 +127,81 @@ enkripsi teks asli
 ### Soal 1
 
 
-# Penjelasan Program FUSE: Konversi File Hexadecimal ke Gambar PNG
 
-Program ini adalah implementasi filesystem menggunakan FUSE (Filesystem in Userspace) yang secara otomatis mengonversi file `.txt` berisi string hexadecimal menjadi file gambar `.png` ketika file tersebut dibaca melalui filesystem. Program juga mencatat aktivitas konversi ke dalam file log `conversion.log`.
+# Dokumentasi Program Konversi Hexadecimal ke Gambar
 
-## Struktur Umum
+## Tujuan Program
 
-- `#define FUSE_USE_VERSION 28` - Menentukan versi API FUSE yang digunakan.
-- `#include <...>` - Header-header yang digunakan untuk fitur seperti manipulasi file, direktori, waktu, dan logging.
-- `static char rootdir[PATH_MAX]` - Menyimpan root direktori asli tempat file sebenarnya berada.
-- `#define LOGFILE "conversion.log"` - Nama file log.
+- Mengambil sampel anomali teks dalam format hexadecimal dari file ZIP.
+- Mengonversi setiap string hexadecimal menjadi gambar PNG.
+- Menyimpan gambar dalam folder `image`.
+- Mencatat setiap proses konversi dalam file `conversion.log`.
 
----
+## Alur Program
 
-## Fungsi `fullpath()`
+1. **Mengunduh dan Mengekstrak File ZIP**
+   - Menggunakan `wget` untuk mengunduh ZIP dari Google Drive.
+   - Mengekstrak ZIP menggunakan `unzip`.
+   - Menghapus file ZIP setelah ekstraksi.
 
-```c
-static void fullpath(char fpath[PATH_MAX], const char *path)
-```
-Menggabungkan `rootdir` dengan path relatif dari FUSE menjadi path absolut di sistem file nyata.
+2. **Identifikasi Format Teks**
+   - Teks dalam file ZIP berada dalam format hexadecimal.
 
----
+3. **Konversi Hexadecimal ke Gambar**
+   - Menggunakan `strtol()` untuk mengubah string hexadecimal menjadi data biner.
+   - Data biner disimpan sebagai file PNG.
 
-## Fungsi `write_log()`
+4. **Penamaan File Gambar**
+   - Format: `[nama file string]_image_[YYYY-mm-dd]_[HH:MM:SS].png`
 
-```c
-void write_log(const char *filename_base, struct tm *tm_info)
-```
-Menulis log konversi ke file `conversion.log`, mencatat waktu dan nama file yang dikonversi.
+5. **Penyimpanan Gambar**
+   - Gambar disimpan di dalam folder `image`.
 
----
+6. **Pencatatan ke dalam Log**
+   - Format log: `[YYYY-mm-dd][HH:MM:SS]: Successfully converted hexadecimal text [nama file string] to [nama file image].`
 
-## Fungsi `xmp_getattr()`
+## Fungsi Utama Program
 
-```c
-static int xmp_getattr(const char *path, struct stat *stbuf)
-```
-Mengambil atribut file (`stat`) dari file nyata. Ini adalah implementasi standar dari FUSE untuk mendukung operasi seperti `ls`.
+### 1. `set_dirpath()`
+Mengatur direktori kerja program ke `/anomali`.
 
----
+### 2. `ensure_output_folder_exists()` dan `ensure_anomali_folder_exists()`
+Memastikan folder output tersedia.
 
-## Fungsi `hex_to_png()`
+### 3. `get_current_time_str()`
+Mengambil waktu saat ini dalam format tanggal dan waktu.
 
-```c
-static int hex_to_png(const char *filepath, const char *filename_base)
-```
-Langkah-langkah:
-1. Membaca isi file `.txt` sebagai string hexadecimal.
-2. Membersihkan string dari whitespace dan newline.
-3. Mengonversi string hex menjadi byte biner.
-4. Menulis byte tersebut sebagai file PNG dalam folder `image`.
-5. Mencatat log konversi.
+### 4. `hex_to_val()`
+Mengubah karakter hexadecimal menjadi nilai integer.
 
----
+### 5. `convert_hex_to_binary()`
+Mengonversi string hexadecimal menjadi data biner.
 
-## Fungsi `already_converted()`
+### 6. `convert_binary_to_image()`
+Menyimpan data biner sebagai file PNG.
 
-```c
-static int already_converted(const char *filename_base)
-```
-Mengecek apakah file hasil konversi PNG dengan nama yang sesuai sudah ada di folder `image`. Ini mencegah konversi ulang.
+### 7. `log_conversion()`
+Mencatat proses konversi ke file `conversion.log`.
 
----
+### 8. `xmp_getattr()` dan `xmp_readdir()`
+Fungsi FUSE untuk mengambil atribut file dan membaca direktori.
 
-## Fungsi `xmp_readdir()`
+## Contoh Output
 
-```c
-static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi)
-```
-Digunakan untuk membaca isi direktori:
-1. Jika menemukan file `.txt`, periksa apakah sudah dikonversi.
-2. Jika belum, lakukan konversi menggunakan `hex_to_png()`.
-3. Tetap melaporkan semua file ke FUSE.
+### Nama File
+`1_image_2025-05-11_18:35:26.png`
 
----
+### Log
+`[2025-05-11][18:35:26]: Successfully converted hexadecimal text 1.txt to 1_image_2025-05-11_18:35:26.png.`
 
-## Fungsi `xmp_read()`
+## Penutup
 
-```c
-static int xmp_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
-```
-Membaca isi file seperti biasa.
+Program ini memanfaatkan FUSE untuk menjalankan konversi file berbasis filesystem secara otomatis, memudahkan pengguna untuk melihat hasil konversi secara langsung dalam folder virtual.
 
----
-
-## Struktur `fuse_operations`
-
-```c
-static struct fuse_operations xmp_oper = {
-    .getattr = xmp_getattr,
-    .readdir = xmp_readdir,
-    .read = xmp_read,
-};
-```
-Mendaftarkan fungsi-fungsi yang akan digunakan oleh FUSE.
-
----
-
-## Fungsi `main()`
-
-```c
-int main(int argc, char *argv[])
-```
-Langkah-langkah:
-1. Membaca `rootdir` dari argumen pertama.
-2. Membuat folder `image` jika belum ada.
-3. Menyesuaikan argumen untuk FUSE (`argv[1]` menjadi mountpoint).
-4. Menjalankan `fuse_main()` dengan operasi yang sudah didefinisikan.
-
----
-
-## Kesimpulan
-
-Filesystem ini akan menampilkan file seperti biasa, tetapi memiliki fitur tambahan:
-- Secara otomatis mengonversi file `.txt` berisi hex ke `.png`.
-- Menyimpan file hasil konversi ke subfolder `image`.
-- Menulis log aktivitas konversi ke `conversion.log`.
-
-Filesystem ini cocok untuk skenario otomatisasi dan edukasi tentang virtual filesystem, binary conversion, dan logging sistem.
-
+## Output
+	![Screenshot 2025-05-17 112924](https://github.com/user-attachments/assets/ed27f029-8347-477e-8cdc-1effb8600b87)
+ 	![Screenshot 2025-05-23 171145](https://github.com/user-attachments/assets/b730f98d-1b6c-4584-b19f-8d8dbfd20c47)
+	![image](https://github.com/user-attachments/assets/54c6b0f0-385c-4fb9-8cf1-4ff2c8b5e569)
 
 
 ### Soal 2
