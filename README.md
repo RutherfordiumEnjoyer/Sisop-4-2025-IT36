@@ -126,102 +126,125 @@ enkripsi teks asli
 
 ### Soal 1
 
-1. Mounting FUSE & Penentuan Root Directory
-   
-   	```cpp
-        int main(int argc, char *argv[]) {
-    if (argc < 3) {
-        fprintf(stderr, "Usage: %s <rootdir> <mountpoint>\n", argv[0]);
-        return 1;
-    }
 
-    if (!realpath(argv[1], rootdir)) {
-        perror("realpath");
-        return 1;
-    }
+# Penjelasan Program FUSE: Konversi File Hexadecimal ke Gambar PNG
 
-   char image_dir[PATH_MAX];
-    snprintf(image_dir, PATH_MAX, "%s/image", rootdir);
-    struct stat st;
-    if (stat(image_dir, &st) == -1) {
-        if (mkdir(image_dir, 0755) == -1) {
-            perror("mkdir image");
-            return 1;
-        }
-    }
+Program ini adalah implementasi filesystem menggunakan FUSE (Filesystem in Userspace) yang secara otomatis mengonversi file `.txt` berisi string hexadecimal menjadi file gambar `.png` ketika file tersebut dibaca melalui filesystem. Program juga mencatat aktivitas konversi ke dalam file log `conversion.log`.
 
-    argv[1] = argv[2];
-    argc--;
-    }
+## Struktur Umum
 
-    	char image_dir[PATH_MAX];
-   
-    	snprintf(image_dir, PATH_MAX, "%s/image", rootdir);
-   
-    	struct stat st;
-   
-    	if (stat(image_dir, &st) == -1) {
-   
-   		if (mkdir(image_dir, 0755) == -1) {
-   
-   		perror("mkdir image");
-   
-   		return 1;
-        }
-    }
+- `#define FUSE_USE_VERSION 28` - Menentukan versi API FUSE yang digunakan.
+- `#include <...>` - Header-header yang digunakan untuk fitur seperti manipulasi file, direktori, waktu, dan logging.
+- `static char rootdir[PATH_MAX]` - Menyimpan root direktori asli tempat file sebenarnya berada.
+- `#define LOGFILE "conversion.log"` - Nama file log.
 
-    argv[1] = argv[2];
-    argc--;
+---
 
-    umask(0);
-    return fuse_main(argc, argv, &xmp_oper, NULL);
-	}
+## Fungsi `fullpath()`
 
-   	 ```
+```c
+static void fullpath(char fpath[PATH_MAX], const char *path)
+```
+Menggabungkan `rootdir` dengan path relatif dari FUSE menjadi path absolut di sistem file nyata.
 
- 2.  Menggabungkan root directory (rootdir) dan path relatif dari FUSE menjadi path absolut file di sistem lokal.
+---
 
-	```cpp
-   	static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
-        	 off_t offset, struct fuse_file_info *fi) {
-    	DIR *dp;
-    	struct dirent *de;
-    	char fpath[PATH_MAX];
-    	fullpath(fpath, path);
+## Fungsi `write_log()`
 
-    	(void) offset;
-    	(void) fi;
+```c
+void write_log(const char *filename_base, struct tm *tm_info)
+```
+Menulis log konversi ke file `conversion.log`, mencatat waktu dan nama file yang dikonversi.
 
-    	dp = opendir(fpath);
-    	if (dp == NULL) return -errno;
+---
 
-    	while ((de = readdir(dp)) != NULL) {
-        struct stat st;
-        memset(&st, 0, sizeof(st));
-        st.st_ino = de->d_ino;
-        st.st_mode = de->d_type << 12;
- 	if (de->d_type == DT_REG) {
-            const char *ext = strrchr(de->d_name, '.');
-            if (ext && strcmp(ext, ".txt") == 0) {
-                char filename_base[NAME_MAX];
-                strncpy(filename_base, de->d_name, NAME_MAX);
-                filename_base[strlen(filename_base) - 4] = '\0';
+## Fungsi `xmp_getattr()`
 
-                if (!already_converted(filename_base)) {
-                    char fullfile[PATH_MAX];
-                    snprintf(fullfile, PATH_MAX, "%s/%s", fpath, de->d_name);
-                    hex_to_png(fullfile, filename_base);
-                }
-            }
-        }
+```c
+static int xmp_getattr(const char *path, struct stat *stbuf)
+```
+Mengambil atribut file (`stat`) dari file nyata. Ini adalah implementasi standar dari FUSE untuk mendukung operasi seperti `ls`.
 
-        if (filler(buf, de->d_name, &st, 0)) break;
-   	 }
+---
 
-   	 closedir(dp);
-  	  return 0;
+## Fungsi `hex_to_png()`
 
-	```
+```c
+static int hex_to_png(const char *filepath, const char *filename_base)
+```
+Langkah-langkah:
+1. Membaca isi file `.txt` sebagai string hexadecimal.
+2. Membersihkan string dari whitespace dan newline.
+3. Mengonversi string hex menjadi byte biner.
+4. Menulis byte tersebut sebagai file PNG dalam folder `image`.
+5. Mencatat log konversi.
+
+---
+
+## Fungsi `already_converted()`
+
+```c
+static int already_converted(const char *filename_base)
+```
+Mengecek apakah file hasil konversi PNG dengan nama yang sesuai sudah ada di folder `image`. Ini mencegah konversi ulang.
+
+---
+
+## Fungsi `xmp_readdir()`
+
+```c
+static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi)
+```
+Digunakan untuk membaca isi direktori:
+1. Jika menemukan file `.txt`, periksa apakah sudah dikonversi.
+2. Jika belum, lakukan konversi menggunakan `hex_to_png()`.
+3. Tetap melaporkan semua file ke FUSE.
+
+---
+
+## Fungsi `xmp_read()`
+
+```c
+static int xmp_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
+```
+Membaca isi file seperti biasa.
+
+---
+
+## Struktur `fuse_operations`
+
+```c
+static struct fuse_operations xmp_oper = {
+    .getattr = xmp_getattr,
+    .readdir = xmp_readdir,
+    .read = xmp_read,
+};
+```
+Mendaftarkan fungsi-fungsi yang akan digunakan oleh FUSE.
+
+---
+
+## Fungsi `main()`
+
+```c
+int main(int argc, char *argv[])
+```
+Langkah-langkah:
+1. Membaca `rootdir` dari argumen pertama.
+2. Membuat folder `image` jika belum ada.
+3. Menyesuaikan argumen untuk FUSE (`argv[1]` menjadi mountpoint).
+4. Menjalankan `fuse_main()` dengan operasi yang sudah didefinisikan.
+
+---
+
+## Kesimpulan
+
+Filesystem ini akan menampilkan file seperti biasa, tetapi memiliki fitur tambahan:
+- Secara otomatis mengonversi file `.txt` berisi hex ke `.png`.
+- Menyimpan file hasil konversi ke subfolder `image`.
+- Menulis log aktivitas konversi ke `conversion.log`.
+
+Filesystem ini cocok untuk skenario otomatisasi dan edukasi tentang virtual filesystem, binary conversion, dan logging sistem.
 
 
 
